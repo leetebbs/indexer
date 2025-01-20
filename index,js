@@ -5,7 +5,8 @@ dotenv.config();
 const provider = new ethers.WebSocketProvider(
   process.env.WS_URL
 );
-
+ 
+console.log(process.env.WS_URL);
 // ERC-721 Transfer event signature
 // const transferEventSignature = ethers.id("Transfer(address,address,uint256)");
 const transferEventSignature = ethers.id(
