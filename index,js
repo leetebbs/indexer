@@ -1,0 +1,47 @@
+const ethers = require("ethers");
+
+// Replace with your WebSocket provider URL
+const provider = new ethers.WebSocketProvider(
+  "wss://rpc.ankr.com/electroneum/ws/170c62bd67ade48420c8cfc93a9ae0c3c9ab154f17b37da37215c7caa0418b59"
+);
+
+// ERC-721 Transfer event signature
+// const transferEventSignature = ethers.id("Transfer(address,address,uint256)");
+const transferEventSignature = ethers.id(
+  "safeTransferFrom(address from, address to, uint256 tokenId)"
+);
+
+console.log("Listening for NFT transfer events...");
+
+// Listen for Transfer events
+provider.on(
+  {
+    topics: [transferEventSignature],
+  },
+  (log) => {
+    const decodedLog = ethers.AbiCoder.defaultAbiCoder().decode(
+      ["address", "address", "uint256"],
+      log.data
+    );
+    const from = decodedLog[0];
+    const to = decodedLog[1];
+    const tokenId = decodedLog[2];
+
+    if (from === ethers.ZeroAddress) {
+      console.log(`New NFT minted to ${to} with tokenId ${tokenId}`);
+    } else {
+      console.log(
+        `NFT transferred from ${from} to ${to} with tokenId ${tokenId}`
+      );
+    }
+  }
+);
+
+provider.websocket.on("error", (err) => {
+  console.error("WebSocket error:", err);
+});
+
+provider.websocket.on("close", () => {
+  console.log("WebSocket connection closed. Reconnecting...");
+  provider.websocket.reconnect();
+});
