@@ -1,7 +1,9 @@
 const { ethers } = require("ethers");
+const dotenv = require("dotenv");
+dotenv.config();
 
 // Replace with your WebSocket provider URL
-const provider = new ethers.WebSocketProvider("wss://rpc.ankr.com/electroneum_testnet/ws/170c62bd67ade48420c8cfc93a9ae0c3c9ab154f17b37da37215c7caa0418b59");
+const provider = new ethers.WebSocketProvider(process.env.WS_URL);
 
 console.log("Listening for all events...");
 
