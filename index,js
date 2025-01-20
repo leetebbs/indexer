@@ -39,11 +39,11 @@ provider.on(
   }
 );
 
-provider.websocket.on("error", (err) => {
-  console.error("WebSocket error:", err);
-});
+// provider.websocket.on("error", (err) => {
+//   console.error("WebSocket error:", err);
+// });
 
-provider.websocket.on("close", () => {
-  console.log("WebSocket connection closed. Reconnecting...");
-  provider.websocket.reconnect();
-});
+// provider.websocket.on("close", () => {
+//   console.log("WebSocket connection closed. Reconnecting...");
+//   provider.websocket.reconnect();
+// });
