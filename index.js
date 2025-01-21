@@ -63,5 +63,5 @@ module.exports = async (req, res) => {
   });
 
   // Respond to Vercel requests
-  res.status(200).send("Listening for blockchain events...");
+  res.status(200).send("Listening for blockchain events...", blockNumber);
 };
