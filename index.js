@@ -2,7 +2,7 @@ const { ethers } = require("ethers");
 const dotenv = require("dotenv");
 dotenv.config();
 const { neon } = require("@neondatabase/serverless");
-let lastProcessedBlockNumber;
+let lastProcessedBlockNumber = 12345;
 // Vercel-compatible export
 module.exports = async (req, res) => {
   // Initialize the WebSocket provider
@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
   provider.on("block", async (blockNumber) => {
     console.log(`New block: ${blockNumber}`);
     const block = await provider.getBlock(blockNumber);
-    lastProcessedBlockNumber = blockNumber;
+    lastProcessedBlockNumber = block;
     const sql = neon(`${process.env.DATABASE_URL}`);
 
     for (const txHash of block.transactions) {
