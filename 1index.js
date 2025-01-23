@@ -9,29 +9,33 @@ const app = express();
 // Replace with your WebSocket provider URL
 const provider = new ethers.WebSocketProvider(process.env.WS_URL);
 
-console.log("Listening for all events...");
+// ERC-721 Transfer event signature
+const transferEventSignature = ethers.id("Transfer(address,address,uint256)");
 
-// Listen for all block events
-provider.on("block", async (blockNumber) => {
-  console.log(`New block: ${blockNumber}`);
-  const block = await provider.getBlock(blockNumber);
+console.log("Indexing the whole blockchain for Transfer events...");
+
+async function indexBlockchain() {
   const sql = neon(`${process.env.DATABASE_URL}`);
+  let fromBlock = 0;
+  const toBlock = await provider.getBlockNumber();
 
-  for (const txHash of block.transactions) {
-    const tx = await provider.getTransaction(txHash);
-    console.log(`Transaction: ${tx.hash}`);
+  while (fromBlock <= toBlock) {
+    const logs = await provider.getLogs({
+      fromBlock,
+      toBlock: fromBlock + 1000 > toBlock ? toBlock : fromBlock + 1000,
+      topics: [transferEventSignature],
+    });
 
-    const receipt = await provider.getTransactionReceipt(tx.hash);
-    for (const log of receipt.logs) {
+    for (const log of logs) {
       console.log(`Log: ${JSON.stringify(log)}`);
-      
+
       try {
-        // Ensure the log is for an ERC721 Transfer event
-        const transferEventSignature = ethers.id("Transfer(address,address,uint256)");
-        if (log.topics[0] === transferEventSignature) {
-          // Decode the topics
-          const from = ethers.getAddress(log.topics[1].slice(26)).toLowerCase(); // Remove padding
-          const to = ethers.getAddress(log.topics[2].slice(26)).toLowerCase();   // Remove padding
+        // Decode the topics
+        const from = ethers.getAddress(log.topics[1].slice(26)).toLowerCase(); // Remove padding
+        const to = ethers.getAddress(log.topics[2].slice(26)).toLowerCase();   // Remove padding
+
+        // Ensure log.topics[3] is not null
+        if (log.topics[3]) {
           const tokenId = ethers.toBigInt(log.topics[3]);          // Convert to BigInt
 
           // Extract the NFT contract address from the log
@@ -49,33 +53,36 @@ provider.on("block", async (blockNumber) => {
             // Update the existing record with the new wallet address and other details
             await sql(
               'UPDATE transactions SET walletAddress = $1, blockNumber = $2, transactionHash = $3 WHERE nftAddress = $4 AND tokenId = $5',
-              [to, blockNumber, tx.hash, nftAddress, tokenId]
+              [to, log.blockNumber, log.transactionHash, nftAddress, tokenId]
             );
             console.log(`Updated database: ${nftAddress}, Token ID: ${tokenId}, New Wallet: ${to}`);
           } else {
             // Insert a new record
             await sql(
               'INSERT INTO transactions (walletAddress, blockNumber, tokenId, nftAddress, transactionHash) VALUES ($1, $2, $3, $4, $5)',
-              [to, blockNumber, tokenId, nftAddress, tx.hash]
+              [to, log.blockNumber, tokenId, nftAddress, log.transactionHash]
             );
-            console.log(`Inserted into database: ${nftAddress}, Block: ${blockNumber}, Token ID: ${tokenId}`);
+            console.log(`Inserted into database: ${nftAddress}, Block: ${log.blockNumber}, Token ID: ${tokenId}`);
           }
         } else {
-          console.log("Not a Transfer event");
+          console.log("Log does not contain a valid tokenId");
         }
       } catch (error) {
         console.log(`Error parsing log: ${error}`);
       }
     }
+
+    fromBlock += 1000;
   }
+}
+
+indexBlockchain().then(() => {
+  console.log("Indexing complete.");
+}).catch((error) => {
+  console.error("Error indexing blockchain:", error);
 });
 
 // Start an express server to keep the process alive
-app.get("/", (req, res) => {
-  res.send("Ethereum Event Listener is running");
-});
-
-// The server will keep the process alive
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
